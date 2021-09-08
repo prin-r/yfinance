@@ -34,10 +34,26 @@ SYMBOLS = [
 
 tickers = yf.Tickers(" ".join(SYMBOLS))
 
+# US stock market hours
+# The NYSE and the NASDAQ are the two largest American exchanges,
+# both of which are located in New York City. Their regular stock
+# trading hours are Monday to Friday 9:30 am to 4:30 pm EST (2:30pm to 9pm GMT).
+# 2:30pm to 9pm GMT -> 14:30 to 21:00
 def get_price(symbol):
     # if market is open then use "regularMarketPrice"
     # else use "preMarketPrice"
-    return tickers.tickers[symbol].info["regularMarketPrice"]
+
+    # utc now
+    now = datetime.datetime.utcnow()
+    # 14:30
+    open_time = datetime.datetime(now.year, now.month, now.day, 14, 30)
+    # 21:00
+    close_time = datetime.datetime(now.year, now.month, now.day, 21, 0)
+
+    if now > open_time and now < close_time:
+        return tickers.tickers[symbol].info["regularMarketPrice"]
+    else:
+        return tickers.tickers[symbol].info["preMarketPrice"]
 
 
 def main():
