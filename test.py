@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
-import datetime
+from time import time
 import concurrent.futures
-import yfinance as yf
+import http.client
 import sys
+import json
 
 SYMBOLS = [
     "AAPL",
@@ -32,28 +33,42 @@ SYMBOLS = [
     "HOOD",
 ]
 
-tickers = yf.Tickers(" ".join(SYMBOLS))
+# REG_KEY = 'class="Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)"'
+# PRE_KEY = 'class="C($primaryColor) Fz(24px) Fw(b)"'
 
-# US stock market hours
-# The NYSE and the NASDAQ are the two largest American exchanges,
-# both of which are located in New York City. Their regular stock
-# trading hours are Monday to Friday 9:30 am to 4:30 pm EST (2:30pm to 9pm GMT).
-# 2:30pm to 9pm GMT -> 14:30 to 21:00
+# def request_reg(symbol):
+#     res = requests.get(URL.format(symbol, symbol))
+#     tmp = res.text
+#     tmp = tmp[tmp.index(REG_KEY) + len(REG_KEY) :]
+#     start, end = (tmp.find(">") + 1, tmp.find("<"))
+#     return float(tmp[start:end].replace(",", ""))
+
+
+# def request_pre(symbol):
+#     res = requests.get(URL.format(symbol, symbol))
+#     tmp = res.text
+#     tmp = tmp[tmp.index(PRE_KEY) + len(PRE_KEY) :]
+#     start, end = (tmp.find(">") + 1, tmp.find("<"))
+#     return float(tmp[start:end].replace(",", ""))
+
+
 def get_price(symbol):
-    # if market is open then use "regularMarketPrice"
-    # else use "preMarketPrice"
+    conn = http.client.HTTPSConnection("query2.finance.yahoo.com")
+    payload = ""
+    headers = {"Content-Type": "application/json"}
+    conn.request("GET", "/v8/finance/chart/" + symbol, payload, headers)
+    res = conn.getresponse()
+    data = json.loads(res.read())
+    meta = data["chart"]["result"][0]["meta"]
+    regular_period = meta["currentTradingPeriod"]["regular"]
+    (regular_time_start, regular_time_end) = (regular_period["start"], regular_period["end"])
 
     # utc now
-    now = datetime.datetime.utcnow()
-    # 14:30
-    open_time = datetime.datetime(now.year, now.month, now.day, 14, 30)
-    # 21:00
-    close_time = datetime.datetime(now.year, now.month, now.day, 21, 0)
-
-    if now > open_time and now < close_time:
-        return tickers.tickers[symbol].info["regularMarketPrice"]
+    now = int(time())
+    if now > int(regular_time_start) and now < int(regular_time_end):
+        return meta["regularMarketPrice"]
     else:
-        return tickers.tickers[symbol].info["preMarketPrice"]
+        return meta["previousClose"]
 
 
 def main():
@@ -67,7 +82,7 @@ def main():
             except Exception as exc:
                 print(f"{symbol} generated an exception: {exc}")
 
-    return results
+    return results  # sorted(results.items())
 
 
 if __name__ == "__main__":
